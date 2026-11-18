@@ -1,30 +1,18 @@
-data_dir: data
+data_dir: /lustre/fsn1/projects/rech/yjs/umf82pt/VoxAnon/
 exp_dir: exp
 model_type_global: ecapa_ssl # ecapa or xvector or ecapa_ssl
-anon_data_suffix: _mcadams # added to transform data/libri_dev/ to data/libri_dev_mcadams/
+anon_data_suffix: _orig # added to transform data/libri_dev/ to data/libri_dev_mcadams/
 
 results_summary_path: !ref <exp_dir>/results_summary/eval_anon<anon_data_suffix>/results_anon.txt
 
-train_data_name: !ref train-clean-360<anon_data_suffix>
+train_data_name: !ref VoxAnon<anon_data_suffix>/VoxAnon_balanced_train/
 
-datasets:
-  - name: libri_dev
-    data: libri_dev
-    enrolls: [_enrolls]
-    trials: [_trials_mixed]
-  - name: libri_test
-    data: libri_test
-    enrolls: [_enrolls]
-    trials: [_trials_mixed]
-
-eval_steps:
-  privacy:
-    - asv
+datasets: []
 
 privacy:
   asv:
     model_type: !ref <model_type_global>
-    dataset_name: [libri_dev, libri_test]
+    dataset_name: []
     training:
       model_type: !ref <model_type_global>
       model_dir: !ref <exp_dir>/asv_anon<anon_data_suffix> # path to existing ASV model or output for trained ASV model
@@ -43,11 +31,11 @@ privacy:
       num_spk: ALL # ALL or specific number, number of speakers
       retrain: true # retrain in any case (true) or skip training if model exists (false)
 
-    evaluation:
-      model_dir: !ref <exp_dir>/asv_anon<anon_data_suffix> # path to existing ASV model or output for trained ASV model
-      results_dir: !ref <exp_dir>/asv_anon<anon_data_suffix> # path to existing ASV model or output for trained ASV model
-      distance: cosine # cosine or plda
-      plda: # ignored if distance is not plda
-        model_dir: null # path to trained PLDA or output of PLDA training
-        train_data_dir: null # path to PLDA training data
-        anon: null # trained on anonymized (true) or original (false) data
+    # evaluation:
+    #   model_dir: !ref <exp_dir>/asv_anon<anon_data_suffix> # path to existing ASV model or output for trained ASV model
+    #   results_dir: !ref <exp_dir>/asv_anon<anon_data_suffix> # path to existing ASV model or output for trained ASV model
+    #   distance: cosine # cosine or plda
+    #   plda: # ignored if distance is not plda
+    #     model_dir: null # path to trained PLDA or output of PLDA training
+    #     train_data_dir: null # path to PLDA training data
+    #     anon: null # trained on anonymized (true) or original (false) data
