@@ -37,46 +37,7 @@ def prepare_libri(
     skip_prep=False,
     utt_selected_ways="spk-random",
 ):
-    """
-    Prepares the csv files for the libri datasets.
-
-    Arguments
-    ---------
-    data_folder : str
-        Path to the folder where the original libri  dataset is stored.
-    save_folder : str
-        The directory where to store the csv files.
-    verification_pairs_file : str
-        txt file containing the verification split.
-    splits : list
-        List of splits to prepare from ['train', 'dev']
-    split_ratio : list
-        List if int for train and validation splits
-    seg_dur : int
-        Segment duration of a chunk in seconds (e.g., 3.0 seconds).
-    amp_th : float
-        removes segments whose average amplitude is below the
-        given threshold.
-    source : str
-        Path to the folder where the VoxCeleb dataset source is stored.
-    num_utt: float
-        How many utterances for each speaker used for training
-    num_spk: float
-        How many speakers used for training
-    random_segment : bool
-        Train random segments
-    skip_prep: Bool
-        If True, skip preparation.
-
-    Example
-    -------
-    >>> from libri_prepare import prepare_libri
-    >>> data_folder = 'LibriSpeech/train-clean-360/'
-    >>> save_folder = 'libri/'
-    >>> splits = ['train', 'dev']
-    >>> split_ratio = [90, 10]
-    >>> prepare_libri(data_folder, save_folder, splits, split_ratio)
-    """
+    """Prepares the csv files (train.csv / dev.csv) from a Kaldi-format folder."""
 
     if skip_prep:
         return
@@ -95,7 +56,6 @@ def prepare_libri(
         logger.info("Skipping preparation, completed in previous run.")
         return
 
-    # Additional checks to make sure the data folder contains VoxCeleb data
     if "," in data_folder:
         data_folder = [Path(dir) for dir in data_folder.replace(" ", "").split(",")]
     else:
@@ -117,7 +77,6 @@ def prepare_libri(
     if "dev" in splits:
         prepare_csv(seg_dur, wav_lst_dev, utt2spk, save_csv_dev, random_segment, amp_th)
 
-
     # Saving options (useful to skip this phase when already done)
     save_pkl(conf, str(save_opt))
 
@@ -126,10 +85,6 @@ def prepare_libri(
 def _get_utt_split_lists(
     data_folders, split_ratio, num_utt='ALL', num_spk='ALL', utt_selected_ways="spk-random"
 ):
-    """
-    Tot. number of speakers libri-360=921
-    Splits the audio file list into train and dev.
-    """
     train_lst = []
     dev_lst = []
 
@@ -254,22 +209,6 @@ def _get_chunks(seg_dur, audio_id, audio_duration):
 def prepare_csv(seg_dur, wav_lst, utt2spk, csv_file, random_segment=False, amp_th=0):
     """
     Creates the csv file given a list of wav files.
-
-    Arguments
-    ---------
-    wav_lst : list
-        The list of wav files of a given data split.
-    csv_file : str
-        The path of the output csv file
-    random_segment: bool
-        Read random segments
-    amp_th: float
-        Threshold on the average amplitude on the chunk.
-        If under this threshold, the chunk is discarded.
-
-    Returns
-    -------
-    None
     """
 
     logger.info(f"Creating csv lists in {csv_file}...")
@@ -280,43 +219,25 @@ def prepare_csv(seg_dur, wav_lst, utt2spk, csv_file, random_segment=False, amp_t
     my_sep = "--"
     entry = []
     problematic_wavs = []
-    # Build utt_id -> spk_id lookup (utt2spk may be dict or legacy list of utt_ids)
-    utt2spk_dict = utt2spk if isinstance(utt2spk, dict) else {}
 
     # Processing all the wav files in the list
     for wav_file in tqdm(wav_lst, dynamic_ncols=True):
-        # Getting sentence and speaker ids
-        temp = wav_file.split("/")[-1].split(".")[0]  # utt_id from filename
-        try:
-            parts = temp.split('-')
-            if len(parts) >= 3:
-                [spk_id, sess_id, utt_id] = parts[-3:]
-            else:
-                # Non-Libri: use utt_id from filename, spk_id from utt2spk. Supports: Aishell (BAC009*), Japanese (AAA_*, DEP_*), MLS (10001_8844_*)
-                utt_id = temp
-                spk_id = utt2spk_dict.get(utt_id, utt_id)
-                sess_id = ""
-        except (ValueError, TypeError) as e:
-            logger.debug(f"Fallback for {wav_file}: {e}")
-            utt_id = temp
-            spk_id = utt2spk_dict.get(utt_id, utt_id)
-            sess_id = ""
-        # Libri: audio_id = spk--sess--utt (WavLM finds {utt}.wav under spk/sess/). Non-Libri: use utt_id so WavLM finds {utt_id}.wav
-        audio_id = my_sep.join([spk_id, sess_id, utt_id]) if sess_id else utt_id
+        # CHANGED: VoxCeleb layout .../wav/<spk>/<video>/<utt>.wav
+        p = Path(wav_file)
+        utt_id = p.stem                # 00001
+        sess_id = p.parent.name        # video id
+        spk_id = p.parent.parent.name  # id00016
+        audio_id = my_sep.join([spk_id, sess_id, utt_id])
 
         # Reading the signal (to retrieve duration in seconds)
         try:
             audio_duration = sf.info(wav_file).duration
-            #signal, fs = torchaudio.load(wav_file)
         except RuntimeError:
             problematic_wavs.append(wav_file)
             continue
-        #signal = signal.squeeze(0)
 
         if random_segment:
-            #audio_duration = signal.shape[0] / SAMPLERATE
             start_sample = 0
-            #stop_sample = signal.shape[0]
             stop_sample = int(audio_duration * SAMPLERATE)
 
             # Composition of the csv_line
@@ -330,7 +251,6 @@ def prepare_csv(seg_dur, wav_lst, utt2spk, csv_file, random_segment=False, amp_t
             ]
             entry.append(csv_line)
         else:
-            #audio_duration = signal.shape[0] / SAMPLERATE
             signal, fs = torchaudio.load(wav_file)
             signal = signal.squeeze(0)
 
@@ -369,16 +289,8 @@ def prepare_csv(seg_dur, wav_lst, utt2spk, csv_file, random_segment=False, amp_t
 
 def skip(splits, save_folder, conf):
     """
-    Detects if the voxceleb data_preparation has been already done.
-    If the preparation has been done, we can skip it.
-
-    Returns
-    -------
-    bool
-        if True, the preparation phase can be skipped.
-        if False, it must be done.
+    Detects if the data preparation has been already done.
     """
-    # Checking csv files
     skip = True
 
     split_files = {
