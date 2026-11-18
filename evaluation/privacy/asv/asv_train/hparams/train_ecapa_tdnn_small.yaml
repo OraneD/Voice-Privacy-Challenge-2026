@@ -47,7 +47,7 @@ deltas: False
 
 
 # Number of speakers
-out_n_neurons: 921 ##921 for libri-train-clean-360
+out_n_neurons: 1000 # for VoxAnon
 
 dataloader_options:
     batch_size: !ref <batch_size>

@@ -37,7 +37,7 @@ mean_var_norm_emb: !new:speechbrain.processing.features.InputNormalization
 
 classifier: !new:speechbrain.lobes.models.ECAPA_TDNN.Classifier
     input_size: 192
-    out_neurons: 921
+    out_neurons: 1000
 
 modules:
     compute_features: !ref <compute_features>
