@@ -8,7 +8,6 @@ import torchaudio
 from tqdm import tqdm
 
 from utils import read_kaldi_format, scan_checkpoint
-# ADAPT: dossier où se trouve speechbrain_vectors.py (voir find ci-dessous)
 from evaluation.privacy.asv.speechbrain_vectors import SpeechBrainVectors
 from evaluation.privacy.asv.utils import normalize_wave
 
@@ -17,7 +16,7 @@ p.add_argument('--wav_scp', required=True)
 p.add_argument('--model_dir', required=True)   # e.g. exp/asv_anon_B3
 p.add_argument('--out_pkl', required=True)
 p.add_argument('--wavlm', default='exp/asv_ssl/WavLM-Large.pt')
-p.add_argument('--save_every', type=int, default=2000)
+p.add_argument('--save_every', type=int, default=2000) # Wont save anything on VoxAnon (1000utt)
 args = p.parse_args()
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
